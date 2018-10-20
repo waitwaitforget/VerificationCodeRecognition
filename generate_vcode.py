@@ -9,7 +9,7 @@ def rndNumber():
 def rndColor():
     return (random.randint(0,255),random.randint(0,255), random.randint(0,255))
 
-def check_code(width=112, height=32, nchar=6, fontpath='/Library/Fonts/Arial Black.ttf'):
+def check_code(width=112, height=32, nchar=6, fontpath='/Library/Fonts/Arial.ttf',mode='train'):
     code = []
     img = Image.new(mode='RGBA',size=(width,height),color=(255,255,255))
     draw = ImageDraw.Draw(img)
@@ -26,7 +26,7 @@ def check_code(width=112, height=32, nchar=6, fontpath='/Library/Fonts/Arial Bla
         y2= random.randint(height/3,height)
         draw.line((x1,y1,x2,y2),fill=rndColor())
     img= img.filter(ImageFilter.EDGE_ENHANCE_MORE)
-    img.save('./genedata/'+''.join(code)+'.png')
+    img.save('./genedata/'+mode+'/'+''.join(code)+'.png')
 
 def gene_text():
     code = ''.join(random.sample(string.digits,6))
@@ -49,7 +49,14 @@ def gene_line(draw, width, height):
     begin = (random.randint(0,width), random.randint(0,height))
     end = (random.randint(0, width), random.randint(0,height))
     draw.line([begin,end],fill=(random.randint(0,255), random.randint(0,255),random.randint(0,255)))
-for i in range(10000):
-    check_code()
+
+import sys
+if __name__=='__main__':
+    if sys.argv[1]=='train':
+	nsample = 20000
+    else:
+	nsample = 3000
+    for i in range(nsample):
+    	check_code(mode=sys.argv[1])
     if i % 1000==0:
         print('generated %i images'%i)
