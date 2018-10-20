@@ -7,9 +7,9 @@ import torch.nn.functional as F
 from torchvision import transforms
 
 
-def load_data():
+def load_data(mode):
     transform = transforms.Compose([transforms.ToTensor()])
-    dset = VerificationCodeDataset('../data', 10, transform)
+    dset = VerificationCodeDataset('../data/'+mode, 10, transform)
     loader = torch.utils.data.DataLoader(dset, batch_size=16, shuffle=True, num_workers=4)
     return loader
 
@@ -39,13 +39,29 @@ def calculate_accuracy(pred, labels):
 model = MultiOutputCNN(6, 10)
 optimizer = optim.SGD(model.parameters(), lr=1e-3)
 
-train_loader = load_data()
+train_loader = load_data('train')
+test_loader = load_data('test')
 
+class AverageMeter(object):
+    def __init__(self,):
+        self.reset()
+
+    def reset(self):
+        self.val=0
+        self.avg=0
+        self.sum=0
+        self.count=0
+
+    def update(self, val,n=1):
+        self.val = val
+        self.sum += val *n
+        self.count += n
+        self.avg= self.sum/self.count
 
 def train(model, optimizer, data_loader, epoch):
     model.train()
-    acc = 0
-    loss_ = 0
+    acc = AverageMeter()
+    loss_ = AverageMeter()
     for ib, (data, labels) in enumerate(data_loader):
         data = Variable(data)
         labels = Variable(labels)
@@ -56,10 +72,26 @@ def train(model, optimizer, data_loader, epoch):
         loss.backward()
 
         optimizer.step()
-        acc += calculate_accuracy(pred, labels)
-        loss_ += loss.data[0]
-    print('Epoch {}: Loss {:.4f}, Accuracy {:.4f}'.format(epoch, loss_ / ib, acc / ib))
+        acc.update(calculate_accuracy(pred, labels),data.size(0))
+        loss_.update(loss.data[0],data.size(0))
+    print('Epoch {}: Loss {:.4f}, Accuracy {:.4f}'.format(epoch, loss_.avg, acc.avg))
 
+def test(model, data_loader, epoch):
+    model.eval()
+    acc = 0
+    loss_ = 0
+    for ib,(data, labels) in enumerate(data_loader):
+        data = Variable(data)
+        labels = Variable(labels)
+        pred = model(data)
+        loss = categorical_crossentropy(pred,labels)
+        acc.update(calculate_accuracy(pred, labels),data.size(0))
+        loss_.update(loss.data[0],data.size(0))
+    print('Test epoch {}: Loss {:.4f}, Accuracy {:.4f}'.format(epoch, loss_.avg, acc.avg)
 
-for epoch in range(2):
+for epoch in range(120):
     train(model, optimizer, train_loader, epoch)
+    test(model, test_loader, epoch)
+
+checkpoint = {'epoch':epoch+1,'state_dict':model.state_dict()}
+torch.save(checkpoint, 'model.pth')
